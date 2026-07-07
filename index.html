@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transcription Wrapper Prototype</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0a0c10;
+      background-image: radial-gradient(circle at 20% 20%, rgba(119, 123, 117, 0), transparent 40%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    }
+
+    .demo-wrap {
+      max-width: 460px;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="demo-wrap">
+    <div data-tw-widget></div>
+  </div>
+
+  <script src="wrapper.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () { TranscriptionWrapper.init(); });
+  </script>
+</body>
+
+</html>

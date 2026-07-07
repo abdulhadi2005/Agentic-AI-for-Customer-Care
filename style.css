@@ -1,0 +1,246 @@
+.tw-root {
+  --tw-bg: #14171c;
+  --tw-panel: #1b2029;
+  --tw-panel-raised: #222834;
+  --tw-line: #2c3341;
+  --tw-text: #e8eaed;
+  --tw-text-dim: #8b93a1;
+  --tw-signal: #b7bec9;
+  --tw-signal-dim: #6f7783;
+  --tw-rec: #ff5d5d;
+  --tw-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  --tw-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  font-family: var(--tw-sans);
+  color: var(--tw-text);
+  background: var(--tw-bg);
+  border: 1px solid var(--tw-line);
+  border-radius: 14px;
+  max-width: 460px;
+  padding: 22px;
+  box-sizing: border-box;
+}
+
+.tw-root * {
+  box-sizing: border-box;
+}
+
+.tw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.tw-title {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tw-text-dim);
+  font-weight: 600;
+}
+
+.tw-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tw-mono);
+  font-size: 11px;
+  color: var(--tw-text-dim);
+  padding: 4px 10px;
+  border: 1px solid var(--tw-line);
+  border-radius: 999px;
+}
+
+.tw-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tw-text-dim);
+  transition: background 0.2s ease;
+}
+
+.tw-status-pill.tw-live .tw-status-dot {
+  background: var(--tw-rec);
+  box-shadow: 0 0 0 0 rgba(255, 93, 93, 0.6);
+  animation: tw-pulse-dot 1.4s infinite;
+}
+
+@keyframes tw-pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 93, 93, 0.55);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 93, 93, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 93, 93, 0);
+  }
+}
+
+.tw-visual {
+  background: var(--tw-panel);
+  border: 1px solid var(--tw-line);
+  border-radius: 10px;
+  height: 90px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+.tw-visual canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.tw-visual-idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--tw-mono);
+  font-size: 11px;
+  color: var(--tw-text-dim);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.tw-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tw-btn {
+  flex: 1;
+  font-family: var(--tw-sans);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  padding: 11px 14px;
+  border: 1px solid var(--tw-line);
+  background: var(--tw-panel-raised);
+  color: var(--tw-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.08s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.tw-btn:hover {
+  border-color: var(--tw-signal-dim);
+}
+
+.tw-btn:active {
+  transform: scale(0.98);
+}
+
+.tw-btn-primary {
+  background: var(--tw-signal);
+  color: #08201e;
+  border-color: var(--tw-signal);
+}
+
+.tw-btn-primary:hover {
+  background: #c5ccd7;
+}
+
+.tw-btn-primary.tw-recording {
+  background: var(--tw-rec);
+  border-color: var(--tw-rec);
+  color: #2a0707;
+}
+
+.tw-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.tw-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.tw-dropzone {
+  border: 1px dashed var(--tw-line);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--tw-text-dim);
+  margin-bottom: 22px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.tw-dropzone:hover,
+.tw-dropzone.tw-drag {
+  border-color: var(--tw-signal);
+  background: rgba(183, 190, 201, 0.08);
+  color: var(--tw-text);
+}
+
+.tw-dropzone input {
+  display: none;
+}
+
+.tw-dropzone strong {
+  color: var(--tw-signal);
+  font-weight: 600;
+}
+
+.tw-console {
+  margin-top: 18px;
+  height: 110px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--tw-line);
+  border-radius: 10px;
+  background: #0e1116;
+  font-family: var(--tw-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.tw-console-line {
+  color: var(--tw-text-dim);
+  word-break: break-word;
+}
+
+.tw-console-time {
+  color: #545c6b;
+  margin-right: 8px;
+}
+
+.tw-console-ok {
+  color: var(--tw-signal);
+}
+
+.tw-console-warn {
+  color: #e8b84f;
+}
+
+.tw-console-err {
+  color: var(--tw-rec);
+}
+
+.tw-console-muted {
+  color: var(--tw-text-dim);
+}
+
+.tw-console::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tw-console::-webkit-scrollbar-thumb {
+  background: var(--tw-line);
+  border-radius: 3px;
+}

@@ -36,12 +36,19 @@
           <input type="file" accept="audio/*" data-tw-file-input />
         </label>
 
+        <div class="tw-transcript" data-tw-transcript-panel hidden>
+          <div class="tw-transcript-label">Transcript</div>
+          <div class="tw-transcript-text" data-tw-transcript-text></div>
+        </div>
+
         <div class="tw-console" data-tw-console>
           <div class="tw-console-line tw-console-muted">Ready.</div>
         </div>
       </div>
     `;
   }
+
+  var BACKEND_URL = 'http://localhost:8000/transcribe';
 
   function TranscriptionWrapper(container) {
     this.container = container;
@@ -57,7 +64,9 @@
       dropzone: container.querySelector('[data-tw-dropzone]'),
       dropzoneLabel: container.querySelector('[data-tw-dropzone-label]'),
       fileInput: container.querySelector('[data-tw-file-input]'),
-      consoleBox: container.querySelector('[data-tw-console]')
+      consoleBox: container.querySelector('[data-tw-console]'),
+      transcriptPanel: container.querySelector('[data-tw-transcript-panel]'),
+      transcriptText: container.querySelector('[data-tw-transcript-text]')
     };
 
     this.audioCtx = null;
@@ -123,6 +132,49 @@
     this.els.statusPill.classList.toggle('tw-live', !!live);
   };
 
+  TranscriptionWrapper.prototype._showTranscript = function (text) {
+    this.els.transcriptPanel.hidden = false;
+    this.els.transcriptText.textContent = text;
+  };
+
+  // Shared bridge: sends any audio Blob/File to the FastAPI backend and
+  // renders the returned transcript. Used by both the mic-recording path
+  // and the file-upload path.
+  TranscriptionWrapper.prototype.sendToBackend = async function (audioBlob, filename) {
+    const self = this;
+    this._setStatus('Transcribing…', true);
+    this.log('Sending audio to backend (' + BACKEND_URL + ')…', 'info');
+
+    const formData = new FormData();
+    formData.append('file', audioBlob, filename || 'audio.webm');
+
+    try {
+      const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(function () { return response.statusText; });
+        throw new Error('Server responded with ' + response.status + ': ' + errText);
+      }
+
+      const data = await response.json();
+      const text = (data && data.text) ? data.text : '';
+
+      if (text) {
+        this.log('Transcription received (' + text.length + ' characters).', 'ok');
+        this._showTranscript(text);
+      } else {
+        this.log('Backend responded but returned no transcript text.', 'err');
+      }
+    } catch (err) {
+      this.log('Transcription request failed: ' + err.message, 'err');
+    } finally {
+      this._setStatus('Idle', false);
+    }
+  };
+
   TranscriptionWrapper.prototype.startRecording = async function () {
     const self = this;
 
@@ -157,9 +209,8 @@
     this.mediaRecorder.onstop = function () {
       const blob = new Blob(self.recordedChunks, { type: 'audio/webm' });
       self.log('Recording stopped. Final blob ready: ' + blob.size + ' bytes, type ' + blob.type + '.', 'ok');
-      self.log('Payload staged for backend API (REST/WebSocket handoff).', 'ok');
-      console.log('[TranscriptionWrapper] recordedBlob ready for upload:', blob);
       self.mediaStream.getTracks().forEach(function (t) { t.stop(); });
+      self.sendToBackend(blob, 'recording.webm');
     };
 
     this.mediaRecorder.start(500);
@@ -188,7 +239,10 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (this.rafId) cancelAnimationFrame(this.rafId);
-    if (this.audioCtx) this.audioCtx.close();
+    if (this.audioCtx) {
+      this.audioCtx.close();
+      this.audioCtx = null;
+    }
   };
 
   TranscriptionWrapper.prototype._drawWaveform = function () {
@@ -244,15 +298,10 @@
       'ok'
     );
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      this.log('File read into memory as ArrayBuffer. Ready to stream to backend.', 'ok');
-      console.log('[TranscriptionWrapper] uploadedFileBuffer ready:', reader.result);
-    };
-    reader.onerror = () => {
-      this.log('Failed to read uploaded file.', 'err');
-    };
-    reader.readAsArrayBuffer(file);
+    // Reset the input value so re-selecting the same file re-triggers 'change'.
+    this.els.fileInput.value = '';
+
+    this.sendToBackend(file, file.name);
   };
 
   global.TranscriptionWrapper = {

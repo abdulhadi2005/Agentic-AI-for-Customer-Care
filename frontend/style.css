@@ -197,8 +197,33 @@
   font-weight: 600;
 }
 
+.tw-transcript {
+  margin-top: 20px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--tw-line);
+  border-radius: 10px;
+  background: var(--tw-panel);
+}
+
+.tw-transcript-label {
+  font-family: var(--tw-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tw-text-dim);
+  margin-bottom: 6px;
+}
+
+.tw-transcript-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--tw-text);
+  white-space: pre-wrap;
+}
+
 .tw-console {
-  margin-top: 18px;
+  margin-top: 20px;
   height: 110px;
   overflow-y: auto;
   padding: 10px 12px;

@@ -1,0 +1,159 @@
+[
+  {
+    "case": "Just under 25MB limit",
+    "result": {
+      "file": "under_limit.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 200,
+      "response_body": {
+        "text": "",
+        "timing_ms": {
+          "upload_receive": 969.3,
+          "model_inference": 2109.2,
+          "total": 3079.5
+        }
+      },
+      "elapsed_ms": 5283.7,
+      "error": null
+    },
+    "passed": true,
+    "note": "Got expected status 200."
+  },
+  {
+    "case": "At/near 25MB limit",
+    "result": {
+      "file": "at_limit.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 200,
+      "response_body": {
+        "text": "",
+        "timing_ms": {
+          "upload_receive": 633.6,
+          "model_inference": 7049.3,
+          "total": 7685.7
+        }
+      },
+      "elapsed_ms": 9875.2,
+      "error": null
+    },
+    "passed": true,
+    "note": "Got expected status 200."
+  },
+  {
+    "case": "Just over 25MB limit",
+    "result": {
+      "file": "over_limit.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 400,
+      "response_body": {
+        "detail": "File too large (25.2 MB). Max is 25 MB."
+      },
+      "elapsed_ms": 2221.9,
+      "error": null
+    },
+    "passed": true,
+    "note": "Got expected status 400."
+  },
+  {
+    "case": "Shortest possible clip (~0.3-0.5s)",
+    "result": {
+      "file": "shortest_clip.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 200,
+      "response_body": {
+        "text": "Yes.",
+        "timing_ms": {
+          "upload_receive": 1.4,
+          "model_inference": 991.1,
+          "total": 993.1
+        }
+      },
+      "elapsed_ms": 3055.2,
+      "error": null
+    },
+    "passed": true,
+    "note": "Got expected status 200."
+  },
+  {
+    "case": "concurrent_requests",
+    "results": [
+      {
+        "file": "clear_speech.wav",
+        "sent_content_type": "audio/wav",
+        "status_code": 200,
+        "response_body": {
+          "text": "Hello, this is a test on the transcription system. I would like to check my account balance and recent transactions please.",
+          "timing_ms": {
+            "upload_receive": 1.7,
+            "model_inference": 4242.4,
+            "total": 4245.4
+          }
+        },
+        "elapsed_ms": 6321.7,
+        "error": null
+      },
+      {
+        "file": "clear_speech.wav",
+        "sent_content_type": "audio/wav",
+        "status_code": 200,
+        "response_body": {
+          "text": "Hello, this is a test on the transcription system. I would like to check my account balance and recent transactions please.",
+          "timing_ms": {
+            "upload_receive": 2.0,
+            "model_inference": 4609.1,
+            "total": 4611.9
+          }
+        },
+        "elapsed_ms": 6692.7,
+        "error": null
+      },
+      {
+        "file": "clear_speech.wav",
+        "sent_content_type": "audio/wav",
+        "status_code": 200,
+        "response_body": {
+          "text": "Hello, this is a test on the transcription system. I would like to check my account balance and recent transactions please.",
+          "timing_ms": {
+            "upload_receive": 1.9,
+            "model_inference": 5328.2,
+            "total": 5333.2
+          }
+        },
+        "elapsed_ms": 7432.1,
+        "error": null
+      },
+      {
+        "file": "clear_speech.wav",
+        "sent_content_type": "audio/wav",
+        "status_code": 200,
+        "response_body": {
+          "text": "Hello, this is a test on the transcription system. I would like to check my account balance and recent transactions please.",
+          "timing_ms": {
+            "upload_receive": 5.7,
+            "model_inference": 5732.8,
+            "total": 5741.0
+          }
+        },
+        "elapsed_ms": 7845.3,
+        "error": null
+      },
+      {
+        "file": "clear_speech.wav",
+        "sent_content_type": "audio/wav",
+        "status_code": 200,
+        "response_body": {
+          "text": "Hello, this is a test on the transcription system. I would like to check my account balance and recent transactions please.",
+          "timing_ms": {
+            "upload_receive": 6.6,
+            "model_inference": 4990.6,
+            "total": 4998.3
+          }
+        },
+        "elapsed_ms": 7063.7,
+        "error": null
+      }
+    ],
+    "passed": true,
+    "note": "5/5 concurrent requests succeeded."
+  }
+]

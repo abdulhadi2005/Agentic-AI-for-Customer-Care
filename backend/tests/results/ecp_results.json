@@ -1,0 +1,112 @@
+[
+  {
+    "case": "Clear speech (valid)",
+    "result": {
+      "file": "clear_speech.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 200,
+      "response_body": {
+        "text": "Hello, this is a test on the transcription system. I would like to check my account balance and recent transactions please.",
+        "timing_ms": {
+          "upload_receive": 2.8,
+          "model_inference": 2443.6,
+          "total": 2447.5
+        }
+      },
+      "elapsed_ms": 4492.0,
+      "error": null
+    },
+    "passed": true,
+    "note": "Got 123 chars of transcript."
+  },
+  {
+    "case": "Speech + heavy background noise (valid)",
+    "result": {
+      "file": "noisy_speech.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 200,
+      "response_body": {
+        "text": "below is in the best of the Flanquistian system. I would like to check my account talent and recent Flanquistian fleet.",
+        "timing_ms": {
+          "upload_receive": 3.6,
+          "model_inference": 2450.8,
+          "total": 2457.9
+        }
+      },
+      "elapsed_ms": 4533.7,
+      "error": null
+    },
+    "passed": true,
+    "note": "Got 119 chars of transcript."
+  },
+  {
+    "case": "Silence / muted audio (valid input, no speech)",
+    "result": {
+      "file": "silence.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 200,
+      "response_body": {
+        "text": "",
+        "timing_ms": {
+          "upload_receive": 2.8,
+          "model_inference": 1856.8,
+          "total": 1860.7
+        }
+      },
+      "elapsed_ms": 3951.6,
+      "error": null
+    },
+    "passed": true,
+    "note": "Correctly returned empty transcript (no hallucinated text)."
+  },
+  {
+    "case": "Non-speech audio \u2014 music/tone (valid input, no speech)",
+    "result": {
+      "file": "non_speech_music.wav",
+      "sent_content_type": "audio/wav",
+      "status_code": 200,
+      "response_body": {
+        "text": "",
+        "timing_ms": {
+          "upload_receive": 4.2,
+          "model_inference": 1905.0,
+          "total": 1912.0
+        }
+      },
+      "elapsed_ms": 4021.0,
+      "error": null
+    },
+    "passed": true,
+    "note": "Correctly returned empty transcript (no hallucinated text)."
+  },
+  {
+    "case": "Corrupted/malformed audio file (invalid)",
+    "result": {
+      "file": "corrupted.mp3",
+      "sent_content_type": "audio/mpeg",
+      "status_code": 500,
+      "response_body": {
+        "detail": "Transcription engine failed."
+      },
+      "elapsed_ms": 2181.9,
+      "error": null
+    },
+    "passed": true,
+    "note": "Server correctly rejected with 500: {'detail': 'Transcription engine failed.'}"
+  },
+  {
+    "case": "Wrong file type \u2014 not audio at all (invalid)",
+    "result": {
+      "file": "wrong_type.txt",
+      "sent_content_type": "text/plain",
+      "status_code": 400,
+      "response_body": {
+        "detail": "Unsupported audio type: text/plain"
+      },
+      "elapsed_ms": 2113.6,
+      "error": null
+    },
+    "passed": true,
+    "note": "Server correctly rejected with 400: {'detail': 'Unsupported audio type: text/plain'}"
+  }
+]

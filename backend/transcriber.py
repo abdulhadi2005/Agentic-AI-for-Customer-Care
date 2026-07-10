@@ -24,6 +24,8 @@ def transcribe(audio_path: str) -> str:
 
     Returns:
         The transcribed text as a single string (segments joined together).
+        Returns an empty string if the audio contains no detectable speech
+        (silence, pure noise, music, etc.) rather than hallucinated text.
 
     Raises:
         FileNotFoundError: if the given path doesn't exist.
@@ -33,6 +35,12 @@ def transcribe(audio_path: str) -> str:
     if not path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
+    # Segments with a high no_speech_prob are the model's own signal that it
+    # doesn't believe there's speech in that segment — filtering on this
+    # prevents silence/background-noise/music inputs from returning
+    # hallucinated text (a known Whisper failure mode on non-speech audio).
+    NO_SPEECH_THRESHOLD = 0.6
+
     try:
         segments, info = _model.transcribe(str(path), beam_size=5, language="en")
         logger.info(
@@ -40,8 +48,23 @@ def transcribe(audio_path: str) -> str:
             f"(confidence {info.language_probability:.2f})"
         )
 
-        full_text = " ".join(segment.text.strip() for segment in segments)
-        return full_text.strip()
+        kept_parts = []
+        dropped_count = 0
+        for segment in segments:
+            if segment.no_speech_prob is not None and segment.no_speech_prob >= NO_SPEECH_THRESHOLD:
+                dropped_count += 1
+                continue
+            text = segment.text.strip()
+            if text:
+                kept_parts.append(text)
+
+        if dropped_count:
+            logger.info(f"Dropped {dropped_count} low-confidence/no-speech segment(s).")
+
+        full_text = " ".join(kept_parts).strip()
+        if not full_text:
+            logger.info("No speech detected in audio — returning empty transcript.")
+        return full_text
 
     except Exception as e:
         logger.error(f"Transcription failed for {audio_path}: {e}")

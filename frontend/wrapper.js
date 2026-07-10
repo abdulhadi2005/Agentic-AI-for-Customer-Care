@@ -50,6 +50,13 @@
 
   var BACKEND_URL = 'http://localhost:8000/transcribe';
 
+  // Recordings smaller than this are treated as accidental/empty (e.g. a
+  // start immediately followed by a stop, faster than the first 500ms
+  // MediaRecorder chunk). Sending these to the backend produces a 500
+  // ("Transcription engine failed") because there's no real audio to
+  // decode — better to catch this client-side with a clear message.
+  var MIN_VALID_BLOB_BYTES = 2000;
+
   function TranscriptionWrapper(container) {
     this.container = container;
     this.container.innerHTML = buildMarkup();
@@ -75,6 +82,7 @@
     this.mediaRecorder = null;
     this.recordedChunks = [];
     this.isRecording = false;
+    this.isTransitioning = false; // true while start/stop is mid-flight (e.g. awaiting getUserMedia)
     this.rafId = null;
 
     this._bindEvents();
@@ -85,6 +93,11 @@
     const self = this;
 
     this.els.recordBtn.addEventListener('click', function () {
+      if (self.isTransitioning) {
+        // Ignore rapid repeat clicks while a start/stop is already mid-flight
+        // (e.g. still awaiting getUserMedia permission resolution).
+        return;
+      }
       if (self.isRecording) {
         self.stopRecording();
       } else {
@@ -178,15 +191,24 @@
   TranscriptionWrapper.prototype.startRecording = async function () {
     const self = this;
 
+    if (this.isRecording || this.isTransitioning) {
+      return; // already recording or another start is already in flight
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       this.log('getUserMedia is not supported in this browser.', 'err');
       return;
     }
 
+    this.isTransitioning = true;
+    this.els.recordBtn.disabled = true;
+
     try {
       this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
       this.log('Microphone permission denied or unavailable: ' + err.message, 'err');
+      this.isTransitioning = false;
+      this.els.recordBtn.disabled = false;
       return;
     }
 
@@ -210,11 +232,27 @@
       const blob = new Blob(self.recordedChunks, { type: 'audio/webm' });
       self.log('Recording stopped. Final blob ready: ' + blob.size + ' bytes, type ' + blob.type + '.', 'ok');
       self.mediaStream.getTracks().forEach(function (t) { t.stop(); });
+
+      // Guard against near-empty recordings (e.g. Start immediately
+      // followed by Stop, faster than the first chunk interval). Sending
+      // these to the backend produces an unhandled decode failure server
+      // side, so we catch it here with a clear, honest message instead.
+      if (blob.size < MIN_VALID_BLOB_BYTES) {
+        self.log(
+          'Recording too short to transcribe (' + blob.size + ' bytes). Skipped — hold the button longer.',
+          'warn'
+        );
+        self._setStatus('Idle', false);
+        return;
+      }
+
       self.sendToBackend(blob, 'recording.webm');
     };
 
     this.mediaRecorder.start(500);
     this.isRecording = true;
+    this.isTransitioning = false;
+    this.els.recordBtn.disabled = false;
     this.els.idleLabel.style.display = 'none';
     this._setStatus('Recording', true);
     this.els.recordLabel.textContent = 'Stop Recording';

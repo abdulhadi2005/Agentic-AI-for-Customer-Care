@@ -1,14 +1,38 @@
-# Voice Transcription Wrapper
+# Voice Transcription Wrapper — Cloud Deployment
 
-A browser-based voice input widget connected to a local FastAPI backend that performs
-speech-to-text transcription using [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper).
-Supports live microphone recording and audio file upload, with the transcript rendered
-directly in the UI.
+A browser-based voice input widget (hosted on Amazon S3) connected to a FastAPI +
+faster-whisper transcription backend (hosted on an AWS EC2 instance). Anyone with
+the S3 link can record or upload audio and get a live transcript back — no local
+setup required.
 
-Built as part of the AIRC/AIST Agentic AI internship — Week 1 deliverable
-(Task 1: frontend widget, Task 2: transcription backend, Task 3: testing & validation).
+**Live pipeline:**
+```
+Browser (S3-hosted page) → wrapper.js → EC2 backend (FastAPI) → faster-whisper → transcript
+```
 
-**Pipeline:** `Browser (mic / file) → wrapper.js → FastAPI → faster-whisper → JSON → transcript rendered`
+---
+
+## Quick Links (fill these in once deployed)
+
+> Before using the app: open https://54.95.19.33:8000/health in your browser first. You'll see a security warning (self-signed certificate) — click Advanced → Proceed to 54.95.19.33 (unsafe). Once it loads and shows {"status": "ok"}, the frontend link will work correctly. This is a one-time step per browser.
+
+| Component | URL |
+|---|---|
+| Frontend (S3 website) | `http://your-bucket.s3-website-<region>.amazonaws.com` |
+| Backend health check | `https://54.95.19.33:8000/health` |
+| Backend transcribe endpoint | `https://54.95.19.33:8000/transcribe` |
+
+### What is the `/health` link and why check it first?
+
+`https://54.95.19.33:8000/health` is **not** something a normal user needs — it's a diagnostic endpoint that just returns `{"status": "ok"}` when the backend server is alive and reachable. It doesn't do any transcription itself; the real work happens at `/transcribe`.
+
+It's the first thing to check whenever something seems broken, because it instantly tells you *where* the problem is:
+
+- **Loads and returns `{"status": "ok"}`** → the backend is fine; if the app still isn't working, the problem is on the frontend side (wrong `BACKEND_URL`, browser blocking the request, etc.).
+- **Times out / connection refused** → the backend itself is down, or the EC2 Security Group / firewall is blocking the port — fix this before looking anywhere else.
+- **Loads but the browser shows a "Not Secure" / certificate warning first** → this backend is using a self-signed HTTPS certificate (not one from a trusted authority). You need to open this exact URL once, click **Advanced → Proceed anyway**, before the frontend's requests to it will succeed. This is a one-time step per browser — until you do it, the S3 frontend will silently fail with "Failed to fetch," even though the backend is actually running fine.
+
+So: it's not "required" in the sense that the code depends on it, but visiting it is a required *step* for you (or anyone testing this) to get the self-signed HTTPS backend working from the browser, and it's always the right first move when debugging.
 
 ---
 
@@ -19,176 +43,182 @@ project/
 ├── frontend/
 │   ├── index.html
 │   ├── style.css
-│   └── wrapper.js           # Self-contained recording/upload widget
+│   └── wrapper.js           # BACKEND_URL here must point to the EC2 endpoint
 ├── backend/
-│   ├── main.py               # FastAPI app — /health and /transcribe endpoints
-│   ├── transcriber.py        # transcribe(audio_path) -> str, model wrapper
-│   ├── requirements.txt      # Version-locked (pip freeze)
+│   ├── main.py               # FastAPI app — /health and /transcribe
+│   ├── transcriber.py        # faster-whisper wrapper
+│   ├── requirements.txt      # version-locked (pip freeze)
 │   └── tests/
-│       ├── common.py         # Shared test helper (POST + result logging)
-│       ├── test_ecp.py       # Equivalence Class Partitioning tests
-│       ├── test_bva.py       # Boundary Value Analysis tests
-│       ├── audio_samples/    # Test audio fixtures (speech, silence, noise, etc.)
-│       └── results/          # Generated .md / .json test reports
-├── report.docx                # Task write-up (gitignored — not pushed to GitHub)
+│       ├── common.py
+│       ├── test_ecp.py
+│       ├── test_bva.py
+│       ├── audio_samples/
+│       └── results/
 └── README.md
 ```
 
 ---
 
-## Prerequisites
+## Architecture — Why It's Split This Way
 
-- Python 3.9+
-- A working microphone and a modern browser (Chrome/Edge/Firefox — all support
-  `getUserMedia` and `MediaRecorder`)
-- ~1–2 GB free disk space for the Whisper model weights (downloaded automatically
-  on first run)
+- **Frontend on S3**: it's just static files (HTML/CSS/JS), so there's no server to manage — S3 serves them directly and cheaply. It stays up independently of the backend.
+- **Backend on EC2**: needs a real Python process running continuously (loads an AI model into memory, runs inference) — that needs an actual server, so it lives on EC2, not S3.
+- **They talk over the network**: the frontend's `wrapper.js` sends audio to the EC2 backend's public address, gets JSON back, and shows the transcript. This is why `BACKEND_URL` inside `wrapper.js` must always point to wherever the backend currently lives — if you ever redeploy the backend to a new IP, this is the one line you must update and re-upload.
 
 ---
 
-## Backend Setup
+## Part 1 — How to Use the Live App (for anyone, no setup)
 
-1. Navigate into the `backend/` folder:
+1. Open the **frontend URL** (see Quick Links table) in a browser (Chrome/Edge/Firefox).
+2. **To record:** click **Start Recording**, allow microphone access, speak, then click **Stop Recording**. It uploads automatically.
+3. **To upload a file instead:** click the dropzone, or drag an audio file onto it.
+4. Wait a few seconds — status shows "Transcribing…" — then the transcript appears on screen.
+5. The console panel at the bottom logs everything happening (chunk capture, upload, response) — useful if something looks stuck.
 
+That's it for a regular user — no backend knowledge needed.
+
+---
+
+## Part 2 — How to Redeploy / Restart Everything (for you, later, when you forget)
+
+### A. Restarting the backend on EC2
+
+If the backend ever goes down (server rebooted, etc.), SSH back in and bring it up again:
+
+```bash
+ssh -i your-key.pem ubuntu@<ec2-public-ip>
+cd backend
+source venv/bin/activate
+```
+
+**If running via systemd** (recommended, restarts automatically on reboot):
+```bash
+sudo systemctl status transcription    # check if it's already running
+sudo systemctl restart transcription   # restart if needed
+```
+
+**If running via tmux** (manual/quick option):
+```bash
+tmux attach -t backend      # reattach to see if it's alive
+# if not running, start it fresh:
+tmux new -s backend
+uvicorn main:app --host 0.0.0.0 --port 8000
+# Ctrl+B then D to detach and leave it running
+```
+
+**Verify it's alive** (from your own machine, not the server):
+```bash
+curl http://<ec2-public-ip>:8000/health
+```
+Should return `{"status": "ok"}`.
+
+### B. Redeploying the frontend to S3
+
+If you change anything in `frontend/` (especially `BACKEND_URL` in `wrapper.js`):
+
+1. Go to the S3 bucket in the AWS Console.
+2. Upload the changed file(s) — this **overwrites** the old version (no separate "publish" step needed).
+3. Refresh the frontend URL in your browser — changes are live immediately.
+
+### C. If the backend's IP address changes (e.g. instance was stopped and restarted)
+
+AWS assigns a new public IP by default every time you stop/start an EC2 instance (unless you attached an Elastic IP). If that happens:
+
+1. Get the new public IP from the EC2 console.
+2. Update `BACKEND_URL` in `frontend/wrapper.js` to the new IP.
+3. Re-upload `wrapper.js` to S3 (step B above).
+4. Re-open Security Group port 8000 (and 80/443 if using HTTPS) for the instance if it somehow reset.
+
+> **Tip to avoid this entirely:** attach an **Elastic IP** to the EC2 instance — it's a fixed IP that doesn't change on stop/start, so you never have to touch `BACKEND_URL` again after the first setup.
+
+---
+
+## Part 3 — Full Setup From Scratch (if you ever need to rebuild this)
+
+### Backend (EC2)
+
+1. Launch an EC2 instance — Ubuntu 22.04, `t2.micro`/`t3.micro` (Free Tier).
+2. Security Group: allow inbound TCP port `8000` (and `80`/`443` if using HTTPS) from `0.0.0.0/0`.
+3. SSH in and install dependencies:
+   ```bash
+   sudo apt update && sudo apt install -y python3-pip python3-venv ffmpeg git
+   ```
+4. Get the code onto the instance (`git clone` or `scp`), then:
    ```bash
    cd backend
-   ```
-
-2. (Recommended) Create and activate a virtual environment:
-
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate        # Windows
-   source venv/bin/activate     # macOS/Linux
-   ```
-
-3. Install dependencies (pinned exact versions, tested on Python 3.10):
-
-   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
    pip install -r requirements.txt
    ```
+5. Run it persistently — either `tmux` (quick) or `systemd` (recommended):
+   ```ini
+   # /etc/systemd/system/transcription.service
+   [Unit]
+   Description=Transcription Backend
+   After=network.target
 
-4. Start the server:
+   [Service]
+   User=ubuntu
+   WorkingDirectory=/home/ubuntu/backend
+   ExecStart=/home/ubuntu/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+   Restart=always
 
+   [Install]
+   WantedBy=multi-user.target
+   ```
    ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   sudo systemctl daemon-reload
+   sudo systemctl enable transcription
+   sudo systemctl start transcription
    ```
 
-   On first run, `faster-whisper` downloads the model weights (`base` model,
-   `int8` compute, CPU). You should see:
+### Frontend (S3)
 
+1. Create an S3 bucket, uncheck "Block all public access."
+2. Upload `index.html`, `style.css`, `wrapper.js`.
+3. Enable **Static website hosting** on the bucket (set `index.html` as the index document).
+4. Add a public-read bucket policy:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Sid": "PublicReadGetObject",
+       "Effect": "Allow",
+       "Principal": "*",
+       "Action": "s3:GetObject",
+       "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+     }]
+   }
    ```
-   INFO:     Loading faster-whisper model 'base' on cpu...
-   INFO:     Model loaded and ready.
-   INFO:     Application startup complete.
-   ```
+5. Note the **website endpoint URL** (not the plain bucket URL) — use this one, it serves over `http://` matching the backend.
+6. Update `wrapper.js`'s `BACKEND_URL` to the EC2 address, then upload it here too.
 
-5. Verify it's running by opening **http://localhost:8000/docs** — FastAPI's
-   interactive API docs, where you can test `/transcribe` directly by uploading
-   a sample audio file.
-
-> **Note:** Always run `uvicorn` from *inside* the `backend/` folder — it looks
-> for `main.py` relative to your current directory.
-
-### API Endpoints
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/health` | GET | Simple readiness check |
-| `/transcribe` | POST | Accepts `multipart/form-data` with field `file`; returns `{ text, timing_ms }` |
-
-`timing_ms` breaks down `upload_receive`, `model_inference`, and `total` latency
-for each request — useful for performance monitoring.
-
-**Limits & validation:** max file size 25 MB; only audio content types are accepted
-(`audio/wav`, `audio/mpeg`, `audio/webm`, `audio/mp4`, `audio/ogg`, etc.) — anything
-else returns `400`.
-
----
-
-## Frontend Setup
-
-No build step required — plain HTML/CSS/JS.
-
-1. Serve it with a simple local server (recommended over opening the file
-   directly, to avoid `file://` restrictions on mic access):
-
-   ```bash
-   cd frontend
-   python -m http.server 5500
-   ```
-
-   Then visit **http://localhost:5500**.
-
-2. Make sure the backend is already running on port 8000 — `wrapper.js` is
-   hardcoded to POST to `http://localhost:8000/transcribe`.
-
-### Using the Widget
-
-**Option 1 — Record from microphone**
-1. Click **Start Recording** and grant microphone permission.
-2. Speak — the live waveform animates.
-3. Click **Stop Recording**. The clip is sent to the backend automatically.
-4. Status shows "Transcribing…", then the transcript appears in the panel.
-
-**Option 2 — Upload an audio file**
-1. Click the dropzone (or drag a file onto it) and select an audio file.
-2. It's sent to the backend automatically; the transcript appears once ready.
-
-All activity (chunk capture, upload progress, backend responses, errors) is
-logged in the console panel at the bottom of the widget for debugging.
-
----
-
-## Running the Tests (Task 3)
-
-With the backend running (`uvicorn main:app --reload` in `backend/`), open a
-second terminal in `backend/`:
+### Running the tests against the cloud backend
 
 ```bash
 cd backend
-python tests/test_ecp.py     # Equivalence Class Partitioning
-python tests/test_bva.py     # Boundary Value Analysis
+python tests/test_ecp.py
+python tests/test_bva.py
 ```
-
-Each script checks `/health` first, then POSTs each sample file in
-`tests/audio_samples/` to `/transcribe` and writes results to
-`tests/results/` as both Markdown (report-ready table) and JSON (raw data).
-
-**Current results: 11/11 tests passing** (6/6 ECP, 5/5 BVA).
-
-| Suite | Cases covered |
-|---|---|
-| ECP | Clear speech, noisy speech, silence, non-speech/music, corrupted file, wrong file type |
-| BVA | Just under / at / over the 25MB limit, shortest possible clip, 5 concurrent requests |
+Make sure the test scripts point at the EC2 URL (not `localhost`) before running — check `common.py`'s base URL.
 
 ---
 
-## Design Notes
+## HTTPS Note (only needed if the frontend is ever served over `https://`)
 
-- **`int8` compute type / `base` model** — chosen for CPU-only inference with a
-  good speed/accuracy tradeoff, no GPU required.
-- **Silence/non-speech filtering** — Whisper can hallucinate text on silence or
-  music. Segments with `no_speech_prob ≥ 0.6` are dropped so these inputs
-  correctly return an empty transcript instead of fabricated text.
-- **Threadpool offloading** — transcription is CPU-bound and synchronous;
-  running it inline would block FastAPI's event loop and stall other requests
-  (even `/health`). It's offloaded via `run_in_threadpool` so the server stays
-  responsive under concurrent load.
-- **Temp file cleanup** — every upload is deleted in a `finally` block, even on
-  failure, so no audio ever accumulates on disk.
-- **Frontend click-lock** — an `isTransitioning` guard prevents rapid
-  Start/Stop clicks from spawning overlapping recording streams (a race
-  condition where `isRecording` wasn't set until after the async mic
-  permission prompt resolved).
+Browsers block a `https://` page from calling a plain `http://` backend ("mixed content"). This deployment currently keeps both frontend and backend on plain `http://`, which avoids the issue entirely and is fine for this deliverable.
+
+If HTTPS is required later, the backend needs a real TLS certificate (e.g. via **nginx + Let's Encrypt**, with a domain name pointed at the EC2 IP) — this is more setup than the current version and only worth doing if explicitly asked for.
 
 ---
 
 ## Troubleshooting
 
-| Issue | Fix |
-|---|---|
-| `ModuleNotFoundError` on startup | Make sure your virtual environment is activated and `pip install -r requirements.txt` completed without errors |
-| Mic permission blocked | Serve the frontend over `http://localhost` (not `file://`) |
-| `500 Transcription engine failed` | Check the audio file isn't corrupted/empty; see backend console logs |
-| Frontend can't reach backend | Confirm backend is running on port 8000 and check for CORS errors in the browser console |
+| Symptom | Cause | Fix |
+|---|---|---|
+| Frontend loads but "Transcribing…" never finishes | Backend down or wrong `BACKEND_URL` | Visit `https://54.95.19.33:8000/health` directly — confirms whether the backend is reachable at all; verify `wrapper.js` has the correct current EC2 address |
+| Browser console: "Failed to fetch" / connection blocked | EC2 Security Group or `ufw` blocking the port | Confirm inbound rule for the port is open in AWS **and** `sudo ufw allow <port>` on the instance |
+| Browser console: "Mixed Content" error | Frontend is `https://` but backend is `http://` | Use the S3 **website endpoint** (plain http), not a CloudFront/https URL, unless backend also has HTTPS set up |
+| `curl` works but browser doesn't (self-signed HTTPS) | Browser doesn't trust the self-signed cert | Visit the backend URL directly once, click "Proceed anyway," then retry from the frontend |
+| Backend was fine yesterday, dead today | EC2 instance was stopped/restarted, uvicorn wasn't set to auto-run | Use the `systemd` service (Part 3) so it restarts automatically; SSH in and check `sudo systemctl status transcription` |
+| IP changed after a reboot | No Elastic IP attached | Attach an Elastic IP once so the address never changes again |

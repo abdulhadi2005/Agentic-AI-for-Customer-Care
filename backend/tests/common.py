@@ -5,7 +5,7 @@ from pathlib import Path
 
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://localhost:8000"
 TRANSCRIBE_URL = f"{BASE_URL}/transcribe"
 HEALTH_URL = f"{BASE_URL}/health"
 

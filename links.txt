@@ -1,0 +1,2 @@
+https://54.95.19.33:8000/health
+https://customercare-transcription-frontend.s3.ap-northeast-1.amazonaws.com/index.html

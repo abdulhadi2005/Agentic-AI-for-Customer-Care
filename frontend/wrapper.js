@@ -48,7 +48,7 @@
     `;
   }
 
-  var BACKEND_URL = 'http://localhost:8000/transcribe';
+  var BACKEND_URL = 'https://54.95.19.33:8000/transcribe';
 
   var MIN_VALID_BLOB_BYTES = 2000;
 

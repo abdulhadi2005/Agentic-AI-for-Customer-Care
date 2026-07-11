@@ -89,7 +89,6 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
         logger.info(f"Saved upload to {temp_path} ({size_mb:.2f} MB)")
 
-        # ---- Run transcription off the event loop thread ----
         inference_start = time.perf_counter()
         text = await run_in_threadpool(transcribe, str(temp_path))
         inference_ms = (time.perf_counter() - inference_start) * 1000

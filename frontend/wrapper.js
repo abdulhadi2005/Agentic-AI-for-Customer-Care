@@ -50,11 +50,6 @@
 
   var BACKEND_URL = 'http://localhost:8000/transcribe';
 
-  // Recordings smaller than this are treated as accidental/empty (e.g. a
-  // start immediately followed by a stop, faster than the first 500ms
-  // MediaRecorder chunk). Sending these to the backend produces a 500
-  // ("Transcription engine failed") because there's no real audio to
-  // decode — better to catch this client-side with a clear message.
   var MIN_VALID_BLOB_BYTES = 2000;
 
   function TranscriptionWrapper(container) {
@@ -82,7 +77,7 @@
     this.mediaRecorder = null;
     this.recordedChunks = [];
     this.isRecording = false;
-    this.isTransitioning = false; // true while start/stop is mid-flight (e.g. awaiting getUserMedia)
+    this.isTransitioning = false;
     this.rafId = null;
 
     this._bindEvents();
@@ -94,8 +89,6 @@
 
     this.els.recordBtn.addEventListener('click', function () {
       if (self.isTransitioning) {
-        // Ignore rapid repeat clicks while a start/stop is already mid-flight
-        // (e.g. still awaiting getUserMedia permission resolution).
         return;
       }
       if (self.isRecording) {
@@ -150,9 +143,6 @@
     this.els.transcriptText.textContent = text;
   };
 
-  // Shared bridge: sends any audio Blob/File to the FastAPI backend and
-  // renders the returned transcript. Used by both the mic-recording path
-  // and the file-upload path.
   TranscriptionWrapper.prototype.sendToBackend = async function (audioBlob, filename) {
     const self = this;
     this._setStatus('Transcribing…', true);
@@ -192,7 +182,7 @@
     const self = this;
 
     if (this.isRecording || this.isTransitioning) {
-      return; // already recording or another start is already in flight
+      return;
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -233,10 +223,6 @@
       self.log('Recording stopped. Final blob ready: ' + blob.size + ' bytes, type ' + blob.type + '.', 'ok');
       self.mediaStream.getTracks().forEach(function (t) { t.stop(); });
 
-      // Guard against near-empty recordings (e.g. Start immediately
-      // followed by Stop, faster than the first chunk interval). Sending
-      // these to the backend produces an unhandled decode failure server
-      // side, so we catch it here with a clear, honest message instead.
       if (blob.size < MIN_VALID_BLOB_BYTES) {
         self.log(
           'Recording too short to transcribe (' + blob.size + ' bytes). Skipped — hold the button longer.',
@@ -336,7 +322,6 @@
       'ok'
     );
 
-    // Reset the input value so re-selecting the same file re-triggers 'change'.
     this.els.fileInput.value = '';
 
     this.sendToBackend(file, file.name);

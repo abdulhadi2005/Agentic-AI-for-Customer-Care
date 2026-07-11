@@ -8,7 +8,6 @@ MODEL_SIZE = "base"
 DEVICE = "cpu"          
 COMPUTE_TYPE = "int8"   
 
-# ---- Load model once at import time -----------------------------------
 logger.info(f"Loading faster-whisper model '{MODEL_SIZE}' on {DEVICE}...")
 _model = WhisperModel(MODEL_SIZE, device=DEVICE, compute_type=COMPUTE_TYPE)
 logger.info("Model loaded and ready.")
@@ -35,10 +34,6 @@ def transcribe(audio_path: str) -> str:
     if not path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
-    # Segments with a high no_speech_prob are the model's own signal that it
-    # doesn't believe there's speech in that segment — filtering on this
-    # prevents silence/background-noise/music inputs from returning
-    # hallucinated text (a known Whisper failure mode on non-speech audio).
     NO_SPEECH_THRESHOLD = 0.6
 
     try:
@@ -69,7 +64,6 @@ def transcribe(audio_path: str) -> str:
     except Exception as e:
         logger.error(f"Transcription failed for {audio_path}: {e}")
         raise RuntimeError(f"Transcription failed: {e}") from e
-
 
 if __name__ == "__main__":
     import sys

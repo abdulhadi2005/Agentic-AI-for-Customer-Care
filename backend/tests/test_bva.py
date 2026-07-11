@@ -1,27 +1,3 @@
-"""
-Task 3 — Boundary Value Analysis (BVA) test script.
-
-Tests the extreme edges of the system's constraints:
-    - Max file size boundary (just under / at / just over the 25MB limit)
-    - Shortest possible voice clip
-    - Concurrent/rapid-fire requests hitting the backend at once
-
-NOTE — rapid Start/Stop button clicking is a frontend-only concern (it
-exercises wrapper.js's MediaRecorder state machine, not the backend) and
-can't be exercised from a Python script. That case is tested manually in
-the browser; see the Task 3 report for those results and the isTransitioning
-guard added to wrapper.js to fix it.
-
-Expected sample files (place in tests/audio_samples/ — see step 4):
-    under_limit.wav     just under MAX_FILE_SIZE_MB (currently 25MB)
-    at_limit.wav        at/just under the exact boundary
-    over_limit.wav      just over MAX_FILE_SIZE_MB
-    shortest_clip.wav    ~0.3-0.5 second clip
-
-Run with the backend already running:
-    python test_bva.py
-"""
-
 import concurrent.futures
 
 from common import (
@@ -33,8 +9,7 @@ from common import (
     write_json,
 )
 
-MAX_FILE_SIZE_MB = 25  # keep in sync with backend/main.py
-
+MAX_FILE_SIZE_MB = 25
 
 def evaluate_size_case(expected_status, result):
     if result["error"] == "MISSING_SAMPLE_FILE":
@@ -44,7 +19,6 @@ def evaluate_size_case(expected_status, result):
     if result["status_code"] == expected_status:
         return True, f"Got expected status {expected_status}."
     return False, f"Expected status {expected_status}, got {result['status_code']}."
-
 
 def run_size_boundary_tests():
     cases = [
@@ -90,7 +64,6 @@ def run_size_boundary_tests():
 
     return rows, raw
 
-
 def run_concurrent_request_test(n=5):
     """
     Fires N /transcribe requests at once using the same short sample, to
@@ -120,7 +93,6 @@ def run_concurrent_request_test(n=5):
     raw = [{"case": "concurrent_requests", "results": results, "passed": passed, "note": note}]
     return rows, raw
 
-
 def main():
     if not check_backend_is_up():
         return
@@ -145,7 +117,6 @@ def main():
         "\nReminder: rapid Start/Stop button clicking must still be tested manually "
         "in the browser — see Task 3 report for that result."
     )
-
 
 if __name__ == "__main__":
     main()

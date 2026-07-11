@@ -1,22 +1,3 @@
-"""
-Task 3 — Equivalence Class Partitioning (ECP) test script.
-
-Partitions audio input into representative classes (valid and invalid) and
-runs one sample per class through /transcribe, checking the actual result
-against the expected behavior for that class.
-
-Expected sample files (place in tests/audio_samples/ — see step 4):
-    clear_speech.wav        valid   — clean spoken audio
-    noisy_speech.wav        valid   — speech with heavy background noise
-    silence.wav             valid*  — pure silence (valid input, expect empty transcript)
-    non_speech_music.wav    valid*  — music/tone, no speech (expect empty transcript)
-    corrupted.mp3           invalid — malformed/truncated audio bytes
-    wrong_type.txt          invalid — non-audio file content
-
-Run with the backend already running:
-    python test_ecp.py
-"""
-
 from common import (
     SAMPLES_DIR,
     RESULTS_DIR,
@@ -25,7 +6,6 @@ from common import (
     write_markdown_table,
     write_json,
 )
-
 
 def evaluate(case_name, expected, result):
     """
@@ -54,11 +34,9 @@ def evaluate(case_name, expected, result):
                 return True, "Correctly returned empty transcript (no hallucinated text)."
             return False, f"Expected empty transcript, but got: {text[:80]!r}"
     else:
-        # Non-200 — just confirm the server responded gracefully, not a hang/crash
         return True, f"Server correctly rejected with {status}: {str(body)[:100]}"
 
     return False, "Unhandled evaluation branch."
-
 
 TEST_CASES = [
     {
@@ -99,7 +77,6 @@ TEST_CASES = [
     },
 ]
 
-
 def main():
     if not check_backend_is_up():
         return
@@ -135,7 +112,6 @@ def main():
 
     passed_count = sum(1 for r in raw_results if r["passed"])
     print(f"\n{passed_count}/{len(TEST_CASES)} ECP cases passed.")
-
 
 if __name__ == "__main__":
     main()
